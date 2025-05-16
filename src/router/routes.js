@@ -1,9 +1,17 @@
+import MainLayout from 'layouts/MainLayout.vue'
+import HomePage from 'pages/HomePage.vue'
+import CameraPage from 'pages/CameraPage.vue'
+import SettingsPage from 'pages/SettingsPage.vue'
+
+
 const routes = [
   {
     path: '/',
-    component: () => import('layouts/MainLayout.vue'),
+    component: MainLayout,
     children: [
-      { path: '', component: () => import('pages/IndexPage.vue') }
+      { path: '/', component: HomePage },
+      { path: '/camera', component: CameraPage },
+      { path: '/settings', component: SettingsPage }
     ]
   },
 
