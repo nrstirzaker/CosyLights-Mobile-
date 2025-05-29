@@ -19,7 +19,7 @@
               icon="fa-solid fa-floppy-disk"
               size="md"
               round
-              @click="saveImage"
+              @click="showSaveDialogue"
               :disabled="!imageCaptured"
               ref="saveButton"
             />
@@ -53,33 +53,59 @@
         </div>
       </div>
     </div>
+
+    <q-dialog v-model="prompt" persistent>
+      <q-card style="min-width: 350px">
+        <q-card-section>
+          <div class="text-h6">Your address</div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <q-input dense v-model="address" autofocus @keyup.enter="prompt = false" />
+        </q-card-section>
+
+        <q-card-actions align="right" class="text-primary">
+          <q-btn flat label="Save" v-close-popup @click="saveImage"/>
+          <q-btn flat label="Cancel" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, ref, reactive } from 'vue'
+import { onMounted, onBeforeUnmount, ref } from 'vue'
 //import { onMounted, onBeforeUnmount, ref } from 'vue'
+import Localbase from 'localbase'
 
 import { DateTime } from 'luxon'
-import { v4 as uuidv4 } from 'uuid'
+//import { v4 as uuidv4 } from 'uuid'
+
+
 
 const cameraRef = ref(null)
 const canvasRef = ref(null)
 const saveButton = ref()
 const discardButton = ref()
 const captureButton = ref()
+const localDB = ref()
 let stream = null
 const imageCaptured = ref(false)
-const post = reactive({
-  id: uuidv4(),
-  name: '',
-  photo: ref(),
-  date: DateTime.now(),
-})
+const prompt = ref(false)
+
 //const forPhoto = document.getElementById('forPhotoId')
 
 onMounted(async () => {
   await initCamera()
+  localDB.value = new Localbase('CosyLights')
+  const success = function(param){
+    console.log(param)
+    console.log("success")
+  }
+
+  //window.webkitPersistentStorage.requestQuota(1024*1024, function() {
+    window.webkitRequestFileSystem(window.PERSISTENT , 1024*1024, success);
+  //})
 })
 
 async function initCamera() {
@@ -110,8 +136,8 @@ function captureImage() {
   let canvasContext = canvas.getContext('2d')
   canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height)
   imageCaptured.value = true
-  post.photo.value = canvas.toDataURL('image/png')
-  console.log(post)
+  //post.photo = dataURItoBlob(canvas.toDataURL())
+
 }
 
 function discardImage() {
@@ -121,12 +147,55 @@ function discardImage() {
   imageCaptured.value = false
 }
 
-function saveImage() {
-  let canvas = canvasRef.value
-  let canvasContext = canvas.getContext('2d')
-  canvasContext.clearRect(0, 0, canvas.width, canvas.height)
-  imageCaptured.value = false
+function showSaveDialogue(){
+  prompt.value = true
 }
+
+function saveImage() {
+
+  const canvas = canvasRef.value
+  const image = canvas.toDataURL("image/png");
+
+
+  //const photoBlob = dataURItoBlob(canvas.toDataURL());
+  //const photoURI = URL.createObjectURL(photoBlob);
+  const post = {
+    id: DateTime.now().toMillis(),
+    name: "bottle",
+    photo: image,
+    date: DateTime.now().toFormat('yyyy-MM-dd:HH:mm:ss'),
+  }
+  console.log(post)
+  imageCaptured.value = false
+  localDB.value.collection('images').add(post)
+}
+
+function dataURItoBlob(dataURI) {
+  // convert base64 to raw binary data held in a string
+  // doesn't handle URLEncoded DataURIs - see SO answer #6850276 for code that does this
+  const byteString = atob(dataURI.split(',')[1]);
+
+  // separate out the mime component
+  const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0]
+
+  // write the bytes of the string to an ArrayBuffer
+  const ab = new ArrayBuffer(byteString.length);
+
+  // create a view into the buffer
+  const ia = new Uint8Array(ab);
+
+  // set the bytes of the buffer to the correct values
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+
+  // write the ArrayBuffer to a blob, and you're done
+  return new Blob([ab], {type: mimeString});
+
+
+}
+
+
 
 //
 </script>
